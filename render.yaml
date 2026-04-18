@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: realtor-agent-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install --workspace server
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8787
+      - key: BUTTERBASE_API_KEY
+        sync: false
+      - key: BUTTERBASE_BASE_URL
+        value: https://api.butterbase.ai
+      - key: BUTTERBASE_APP_ID
+        value: app_0aga3lydyw9r
+      - key: IONROUTER_API_KEY
+        sync: false
+      - key: IONROUTER_BASE_URL
+        value: https://glm.ionrouter.io/v1
+      - key: IONROUTER_TEXT_MODEL
+        value: glm-5
+      - key: IONROUTER_VISION_MODEL
+        value: glm-5
+      - key: IONROUTER_TTS_MODEL
+        value: tts-1
+      - key: SEEDANCE_API_KEY
+        sync: false
+      - key: SEEDANCE_BASE_URL
+        value: https://ark.ap-southeast.bytepluses.com/api/v3
+      - key: SEEDANCE_MODEL
+        value: dreamina-seedance-2-0-260128
+      - key: PHOTON_PROJECT_ID
+        value: 4c8ab794-dc38-42b1-b237-2433aa3b3524
+      - key: PHOTON_API_KEY
+        sync: false
+      - key: PHOTON_BASE_URL
+        value: https://api.photonapp.ai
+      - key: SPECTRUM_CLOUD_URL
+        value: api.photonapp.ai
+      - key: REALTOR_NAME
+        value: Alex Carter
+      - key: PUBLIC_BASE_URL
+        sync: false

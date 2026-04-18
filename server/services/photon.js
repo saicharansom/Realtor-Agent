@@ -1,56 +1,109 @@
 /**
- * Photon Spectrum client (iMessage outbound).
+ * Photon Spectrum iMessage integration using the spectrum-ts SDK.
  *
- * We prefer `spectrum-ts` when available. If the package shape differs from
- * what we expect, we fall back to a plain fetch against PHOTON_BASE_URL.
- * That makes the build robust to SDK churn during the hackathon.
+ * Flow:
+ *   1. startSpectrum(onMessage) — connects to Photon and starts listening
+ *   2. onMessage({ from, body, space }) fires for every inbound iMessage
+ *   3. space.send(reply) or replyToSpace(space, reply) sends the response
+ *   4. sendToPhone({ to, body }) opens a new DM to any number (realtor manual replies)
+ *
+ * Env:
+ *   PHOTON_PROJECT_ID  — find in Photon dashboard → Settings
+ *   PHOTON_API_KEY     — project secret key
+ *   PHOTON_BASE_URL    — default: https://api.photonapp.ai
  */
-let SpectrumClient = null;
-try {
-  const mod = await import('spectrum-ts');
-  SpectrumClient = mod.Spectrum || mod.SpectrumClient || mod.default || null;
-} catch {
-  /* not installed yet — fetch fallback only */
-}
+// spectrum-ts is loaded dynamically inside startSpectrum() so SPECTRUM_CLOUD_URL
+// is guaranteed to be set before the SDK module evaluates its cloud URL.
 
-const BASE = process.env.PHOTON_BASE_URL || 'https://api.photonapp.ai';
-const KEY = process.env.PHOTON_API_KEY;
+// Must be set BEFORE spectrum-ts is imported (module-level var in the SDK).
+// We use dynamic import() inside startSpectrum() to guarantee this runs first.
+process.env.SPECTRUM_CLOUD_URL = 'api.photonapp.ai';
 
-let sdk = null;
-if (SpectrumClient && KEY) {
+let spectrumApp = null;
+
+/**
+ * Start the Spectrum iMessage listener.
+ * Calls onMessage({ from, body, space }) for every inbound text message.
+ * Safe to call multiple times — ignores if already running.
+ *
+ * @param {(msg: { from: string, body: string, space: object }) => Promise<void>} onMessage
+ */
+export async function startSpectrum(onMessage) {
+  if (spectrumApp) return; // already running
+
+  const projectId = process.env.PHOTON_PROJECT_ID;
+  const projectSecret = process.env.PHOTON_API_KEY;
+
+  if (!projectId || !projectSecret) {
+    console.warn('[photon] PHOTON_PROJECT_ID or PHOTON_API_KEY not set — iMessage listener disabled');
+    return;
+  }
+
   try {
-    sdk = new SpectrumClient({ apiKey: KEY });
-  } catch (e) {
-    console.warn('[photon] spectrum-ts init failed, using fetch fallback', e.message);
+    const { Spectrum } = await import('spectrum-ts');
+    const { imessage } = await import('spectrum-ts/providers/imessage');
+
+    spectrumApp = await Spectrum({
+      projectId,
+      projectSecret,
+      providers: [imessage.config()],
+    });
+
+    console.log('[photon] Spectrum connected — listening for iMessages');
+
+    // Run the message loop in the background (non-blocking)
+    (async () => {
+      for await (const [space, message] of spectrumApp.messages) {
+        try {
+          if (message.content.type !== 'text') continue;
+          const from = message.sender.id;    // phone number e.g. "+15551234567"
+          const body = message.content.text;
+          await onMessage({ from, body, space });
+        } catch (err) {
+          console.error('[photon] message handler error:', err.message);
+        }
+      }
+    })().catch(err => console.error('[photon] Spectrum stream error:', err.message));
+
+  } catch (err) {
+    console.warn('[photon] Spectrum init failed:', err.message);
+    spectrumApp = null;
   }
 }
 
+/**
+ * Reply into the same conversation space (used inside the message handler).
+ * Shows a typing indicator while generating the reply.
+ *
+ * @param {object} space  — the Space object from the [space, message] tuple
+ * @param {string} body   — reply text
+ */
+export async function replyToSpace(space, body) {
+  await space.responding(async () => {
+    await space.send(body);
+  });
+}
+
+/**
+ * Open a new DM and send a message to any phone number.
+ * Used for realtor manual replies from the dashboard.
+ *
+ * @param {{ to: string, body: string }} opts
+ */
 export async function sendIMessage({ to, body }) {
-  if (!KEY) {
-    console.warn('[photon] PHOTON_API_KEY missing — simulating send');
+  if (!spectrumApp) {
+    console.warn('[photon] Spectrum not connected — cannot send to', to);
     return { simulated: true, to, body };
   }
-
-  if (sdk?.messages?.send) {
-    return sdk.messages.send({ to, body });
-  }
-
-  const res = await fetch(`${BASE}/v1/messages`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${KEY}`,
-    },
-    body: JSON.stringify({ to, body }),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`photon send ${res.status}: ${t}`);
-  }
-  return res.json();
+  const { imessage } = await import('spectrum-ts/providers/imessage');
+  const im = imessage(spectrumApp);
+  const user = await im.user(to);
+  const space = await im.space(user);
+  await space.send(body);
+  return { sent: true, to };
 }
 
-/** Normalize inbound webhook payloads — Photon shapes may vary. */
+/** @deprecated kept for any remaining callers — use sendIMessage or replyToSpace */
 export function normaliseInbound(payload) {
   return {
     from: payload.from || payload.sender || payload.handle || '',

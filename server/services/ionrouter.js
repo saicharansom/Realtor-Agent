@@ -13,20 +13,20 @@
  */
 import OpenAI from 'openai';
 
-const BASE = process.env.IONROUTER_BASE_URL || 'https://glm.ionrouter.io/v1';
-const KEY = process.env.IONROUTER_API_KEY;
-const TEXT_MODEL = process.env.IONROUTER_TEXT_MODEL || 'glm-5';
-const VISION_MODEL = process.env.IONROUTER_VISION_MODEL || 'glm-5';
-const TTS_MODEL = process.env.IONROUTER_TTS_MODEL || 'tts-1';
-
-let client = null;
-if (KEY) {
-  client = new OpenAI({ apiKey: KEY, baseURL: BASE });
-}
+// Read env at call-time to avoid ESM hoisting issue (dotenv not yet run at import time).
+let _client = null;
 
 function requireClient() {
-  if (!client) throw new Error('IONROUTER_API_KEY missing');
-  return client;
+  if (_client) return _client;
+  const KEY  = process.env.IONROUTER_API_KEY;
+  const BASE = process.env.IONROUTER_BASE_URL || 'https://glm.ionrouter.io/v1';
+  if (!KEY) throw new Error('IONROUTER_API_KEY missing');
+  _client = new OpenAI({ apiKey: KEY, baseURL: BASE });
+  return _client;
+}
+
+function model(key, fallback) {
+  return process.env[key] || fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ ${JSON.stringify({
   }, null, 2)}`;
 
   const out = await c.chat.completions.create({
-    model: TEXT_MODEL,
+    model: model('IONROUTER_TEXT_MODEL', 'glm-5'),
     messages: [{ role: 'user', content: prompt }],
     temperature: 0.8,
     top_p: 0.9,
@@ -65,8 +65,39 @@ ${JSON.stringify({
 }
 
 // ---------------------------------------------------------------------------
-// Vision — photo ranking
+// Vision — photo ranking & description
 // ---------------------------------------------------------------------------
+export async function describeImages(photoUrls) {
+  if (!photoUrls?.length) return null;
+
+  const c = requireClient();
+  const content = [
+    {
+      type: 'text',
+      text:
+        'You are a real-estate social-media editor. Look at these images of a house and write a punchy 25-second TikTok/Reels script. ' +
+        'Describe what you actually see (e.g. marble countertops, hardwood floors, natural light, pool). ' +
+        'Structure: one-line hook, 3 highlight beats, call-to-action. ' +
+        'Avoid clichés. Return ONLY JSON: {"hook":"...","beats":["...","...","..."],"cta":"..."}',
+    },
+    ...photoUrls.slice(0, 5).map(u => ({ type: 'image_url', image_url: { url: u } })),
+  ];
+
+  try {
+    const out = await c.chat.completions.create({
+      model: model('IONROUTER_VISION_MODEL', 'glm-5'),
+      messages: [{ role: 'user', content }],
+      temperature: 0.7,
+      max_tokens: 600,
+    });
+    const txt = out.choices?.[0]?.message?.content || '{}';
+    return parseJsonLoose(txt);
+  } catch (e) {
+    console.warn('[ionrouter] describeImages failed:', e.message);
+    return null;
+  }
+}
+
 export async function rankPhotos(photoUrls, max = 8) {
   if (!photoUrls?.length) return [];
   if (photoUrls.length <= max) return photoUrls.map((_, i) => i);
@@ -85,7 +116,7 @@ export async function rankPhotos(photoUrls, max = 8) {
 
   try {
     const out = await c.chat.completions.create({
-      model: VISION_MODEL,
+      model: model('IONROUTER_VISION_MODEL', 'glm-5'),
       messages: [{ role: 'user', content }],
       temperature: 0.2,
       max_tokens: 400,
@@ -106,7 +137,7 @@ export async function synthesizeVoiceover(text, voice = 'alloy') {
   const c = requireClient();
   try {
     const res = await c.audio.speech.create({
-      model: TTS_MODEL,
+      model: model('IONROUTER_TTS_MODEL', 'tts-1'),
       voice,
       input: text,
       response_format: 'mp3',

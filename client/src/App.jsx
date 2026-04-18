@@ -6,15 +6,13 @@ import LeadDrawer from './components/LeadDrawer.jsx';
 
 export default function App() {
   const [leads, setLeads] = useState([]);
-  const [listings, setListings] = useState([]);
   const [activeLead, setActiveLead] = useState(null);
   const [toast, setToast] = useState(null);
 
   async function refresh() {
     try {
-      const [l, li] = await Promise.all([api.leads(), api.listings()]);
+      const l = await api.leads();
       setLeads(l);
-      setListings(li);
     } catch (e) {
       console.error(e);
     }
@@ -54,7 +52,7 @@ export default function App() {
           <LeadPipeline leads={leads} onOpen={setActiveLead} onRefresh={refresh} />
         </section>
         <section className="col-span-5 overflow-y-auto">
-          <VideoStudio listings={listings} onRefresh={refresh} notify={setToast} />
+          <VideoStudio notify={setToast} />
         </section>
       </main>
 

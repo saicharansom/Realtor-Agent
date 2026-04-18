@@ -9,10 +9,9 @@
  * The exact path may shift — if Butterbase's live API differs, only this
  * file needs to change.
  */
-const BASE = process.env.BUTTERBASE_BASE_URL || 'https://api.butterbase.ai';
-const KEY = process.env.BUTTERBASE_API_KEY;
-
 async function call(path, body) {
+  const KEY = process.env.BUTTERBASE_API_KEY;
+  const BASE = process.env.BUTTERBASE_BASE_URL || 'https://api.butterbase.ai';
   if (!KEY) throw new Error('BUTTERBASE_API_KEY missing');
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
