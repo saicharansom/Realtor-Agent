@@ -10,6 +10,7 @@ import {
 } from '../services/ionrouter.js';
 import { assembleVideo, addTextOverlay } from '../services/video.js';
 import { generateVideoFromText, generateVideoFromImage, generateVideoFromImages } from '../services/seedance.js';
+import { generateSlideshow } from '../services/json2video.js';
 import { uploadImages } from '../services/butterbase-storage.js';
 
 import { promises as fs } from 'node:fs';
@@ -178,8 +179,24 @@ r.post('/generate-from-images', async (req, res, next) => {
     const beats = [script.hook, ...script.beats, script.cta];
     let video_url = null;
 
-    // 3. Seedance image-to-video using uploaded public URLs (up to 9)
-    if (publicUrls.length > 0) {
+    // 3. JSON2Video slideshow from uploaded public URLs (primary path)
+    if (publicUrls.length > 0 && process.env.JSON2VIDEO_API_KEY) {
+      try {
+        const captions = [script.hook, ...(script.beats || []), script.cta]
+          .filter(Boolean)
+          .slice(0, publicUrls.length);
+        while (captions.length < publicUrls.length) captions.push('');
+
+        console.log(`[listings] generating JSON2Video slideshow from ${publicUrls.length} images…`);
+        video_url = await generateSlideshow(publicUrls, captions);
+        console.log('[listings] JSON2Video ready:', video_url);
+      } catch (e) {
+        console.warn('[listings] JSON2Video failed, trying Seedance:', e.message);
+      }
+    }
+
+    // 3b. Seedance fallback if JSON2Video unavailable / failed
+    if (!video_url && publicUrls.length > 0) {
       try {
         const seedancePrompt =
           `Cinematic real estate walkthrough tour. ` +
