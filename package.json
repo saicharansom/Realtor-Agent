@@ -22,6 +22,7 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "@openrouter/sdk": "^0.12.16",
     "spectrum-ts": "^0.4.0"
   }
 }

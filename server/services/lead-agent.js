@@ -1,24 +1,24 @@
 /**
  * iMessage lead agent — qualifies buyers/renters/sellers over text.
- * Powered by Cumulus Labs / IonRouter (GLM-5 via OpenAI-compatible API).
+ * Primary: OpenRouter (via @openrouter/sdk, OPENROUTER_API_KEY)
+ * Fallback: IonRouter / GLM-5 (IONROUTER_API_KEY)
  */
 import OpenAI from 'openai';
+import { createAgent } from './openrouter-agent.js';
 import { SYSTEM_PROMPT } from '../prompts/imessage-agent.js';
 
 const BASE = process.env.IONROUTER_BASE_URL || 'https://glm.ionrouter.io/v1';
-const KEY = process.env.IONROUTER_API_KEY;
-const MODEL = process.env.IONROUTER_TEXT_MODEL || 'glm-5';
+const IONROUTER_KEY = process.env.IONROUTER_API_KEY;
+const IONROUTER_MODEL = process.env.IONROUTER_TEXT_MODEL || 'glm-5';
 
-let client = null;
-if (KEY) client = new OpenAI({ apiKey: KEY, baseURL: BASE });
+let ionClient = null;
+if (IONROUTER_KEY) ionClient = new OpenAI({ apiKey: IONROUTER_KEY, baseURL: BASE });
 
 /**
  * Call the lead-qualification agent.
  * Returns { reply, new_status, contact_type, qualifying_data_updates, notes, action }.
  */
 export async function runLeadAgent({ lead, listing, history, incoming }) {
-  if (!client) throw new Error('IONROUTER_API_KEY missing');
-
   const context = {
     realtor_name: process.env.REALTOR_NAME || 'the realtor',
     calendar_link: process.env.REALTOR_CALENDAR_LINK || null,
@@ -41,25 +41,44 @@ export async function runLeadAgent({ lead, listing, history, incoming }) {
       : null,
   };
 
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT({ realtorName: context.realtor_name }) },
-  ];
-  for (const m of history) {
-    messages.push({
-      role: m.direction === 'inbound' ? 'user' : 'assistant',
-      content: m.body,
-    });
-  }
-  messages.push({
-    role: 'user',
-    content:
-      `CONTEXT:\n${JSON.stringify(context, null, 2)}\n\n` +
-      `LATEST INBOUND MESSAGE:\n${incoming}\n\n` +
-      `Respond with ONLY the JSON object defined in the system prompt.`,
-  });
+  const systemContent = SYSTEM_PROMPT({ realtorName: context.realtor_name });
+  const userContent =
+    `CONTEXT:\n${JSON.stringify(context, null, 2)}\n\n` +
+    `LATEST INBOUND MESSAGE:\n${incoming}\n\n` +
+    `Respond with ONLY the JSON object defined in the system prompt.`;
 
-  const out = await client.chat.completions.create({
-    model: MODEL,
+  // Build history messages
+  const historyMsgs = history.map(m => ({
+    role: m.direction === 'inbound' ? 'user' : 'assistant',
+    content: m.body,
+  }));
+
+  // ── Primary: OpenRouter ──────────────────────────────────────────────────
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const agent = createAgent({ systemPrompt: systemContent });
+      agent.setMessages([
+        { role: 'system', content: systemContent },
+        ...historyMsgs,
+      ]);
+      const text = await agent.sendSync(userContent);
+      return parseJsonLoose(text);
+    } catch (e) {
+      console.warn('[lead-agent] OpenRouter failed, falling back to IonRouter:', e.message);
+    }
+  }
+
+  // ── Fallback: IonRouter / GLM-5 ─────────────────────────────────────────
+  if (!ionClient) throw new Error('No AI provider configured (set OPENROUTER_API_KEY or IONROUTER_API_KEY)');
+
+  const messages = [
+    { role: 'system', content: systemContent },
+    ...historyMsgs,
+    { role: 'user', content: userContent },
+  ];
+
+  const out = await ionClient.chat.completions.create({
+    model: IONROUTER_MODEL,
     messages,
     temperature: 0.6,
     top_p: 0.9,
