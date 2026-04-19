@@ -2,6 +2,7 @@
   "name": "realtor-ai",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "RealtorAI — Zillow→video agent + iMessage lead agent + realtor dashboard",
   "workspaces": [
     "server",
