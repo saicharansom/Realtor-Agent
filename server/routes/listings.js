@@ -83,9 +83,10 @@ r.post('/:id/generate-video', async (req, res, next) => {
       ].filter(Boolean).join('. ');
 
       const seedancePrompt =
-        `Cinematic real estate property tour. ${propDetails}. ` +
+        `Cinematic real estate walkthrough tour. ${propDetails}. ` +
         `${script.hook} ${(script.beats || []).join(' ')} ` +
-        `Smooth cinematic camera movements through interior spaces. Vertical 9:16 social media reel.`;
+        `Smooth dolly walkthrough moving room to room, slow pan revealing each space. ` +
+        `Vertical 9:16 social media reel.`;
 
       const publicPhotos = photos.filter(p => p?.startsWith('http'));
       const rawUrl = publicPhotos.length > 1
@@ -181,10 +182,11 @@ r.post('/generate-from-images', async (req, res, next) => {
     if (publicUrls.length > 0) {
       try {
         const seedancePrompt =
-          `Cinematic real estate property tour. ` +
+          `Cinematic real estate walkthrough tour. ` +
           `${script.hook} ${(script.beats || []).join(' ')} ` +
           (customPrompt ? `${customPrompt}. ` : '') +
-          `Smooth cinematic camera movements. Vertical 9:16 social media reel.`;
+          `Smooth dolly walkthrough moving room to room, slow pan revealing each space. ` +
+          `Vertical 9:16 social media reel.`;
 
         const rawUrl = await generateVideoFromImages(seedancePrompt, publicUrls);
         console.log('[listings] Seedance i2v video ready:', rawUrl);

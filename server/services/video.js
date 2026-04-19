@@ -9,7 +9,9 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const OUT_DIR = path.resolve('out');
+const OUT_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'rv-out')
+  : path.resolve('out');
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
@@ -60,34 +62,47 @@ export async function assembleVideo({ photoUrls, voiceover, captions, listingId 
     await fs.writeFile(voicePath, voiceover);
     durSec = await probeDuration(voicePath);
   }
-  const perPhoto = Math.max(2, durSec / photoPaths.length);
+  const perPhoto = Math.max(2.5, durSec / photoPaths.length);
+  const dFrames = Math.round(perPhoto * 30);
 
-  // 4. Build input list for concat demuxer
-  const listFile = path.join(tmp, 'list.txt');
-  const listBody = photoPaths
-    .map(p => `file '${p}'\nduration ${perPhoto.toFixed(2)}`)
-    .join('\n') + `\nfile '${photoPaths[photoPaths.length - 1]}'\n`;
-  await fs.writeFile(listFile, listBody);
-
-  // 5. Build video filter — scale + zoom/pan (no drawtext: requires libfreetype)
-  const videoFilter =
-    `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,` +
-    `zoompan=z='min(zoom+0.0015,1.1)':d=${Math.round(perPhoto * 30)}:s=1080x1920`;
+  // 3. Build filter_complex — each image gets its own independent zoompan so
+  //    the zoom variable resets per photo (concat-demuxer shares state, breaking Ken Burns).
+  //    Four motion patterns cycle across photos for a real walkthrough feel.
+  const kenBurnsPatterns = [
+    // zoom in from center
+    `z='min(zoom+0.0015,1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`,
+    // zoom out to center
+    `z='if(lte(zoom,1),1.08,max(zoom-0.0015,1))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'`,
+    // zoom in + slow pan up
+    `z='min(zoom+0.0015,1.1)':x='iw/2-(iw/zoom/2)':y='max(0,ih/2-(ih/zoom/2)-on*0.4)'`,
+    // zoom in + slow pan right
+    `z='min(zoom+0.0015,1.1)':x='min(iw-(iw/zoom),iw/2-(iw/zoom/2)+on*0.4)':y='ih/2-(ih/zoom/2)'`,
+  ];
 
   const outPath = path.join(OUT_DIR, `${listingId}.mp4`);
 
-  const ffargs = [
-    '-y',
-    '-f', 'concat', '-safe', '0', '-i', listFile,
-  ];
+  // Build ffmpeg args: each photo is a looped input, filter_complex handles per-image zoompan
+  const ffargs = ['-y'];
+  photoPaths.forEach(p => ffargs.push('-loop', '1', '-t', perPhoto.toFixed(2), '-i', p));
   if (voicePath) ffargs.push('-i', voicePath);
-  ffargs.push(
-    '-vf', videoFilter,
-    '-r', '30',
-    '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
-  );
-  if (voicePath) ffargs.push('-c:a', 'aac', '-shortest');
-  ffargs.push('-movflags', '+faststart', outPath);
+
+  const filterParts = photoPaths.map((_, i) => {
+    const pattern = kenBurnsPatterns[i % kenBurnsPatterns.length];
+    return (
+      `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,` +
+      `crop=1080:1920,` +
+      `zoompan=${pattern}:d=${dFrames}:s=1080x1920,fps=30[v${i}]`
+    );
+  });
+  const concatInputs = photoPaths.map((_, i) => `[v${i}]`).join('');
+  filterParts.push(`${concatInputs}concat=n=${photoPaths.length}:v=1:a=0[outv]`);
+
+  ffargs.push('-filter_complex', filterParts.join(';'));
+  ffargs.push('-map', '[outv]');
+  if (voicePath) {
+    ffargs.push('-map', `${photoPaths.length}:a`, '-c:a', 'aac', '-shortest');
+  }
+  ffargs.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', outPath);
 
   await run('ffmpeg', ffargs);
 
