@@ -13,11 +13,13 @@ const SendIcon = () => (
   </svg>
 );
 
-const HomeIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-    <polyline points="9 22 9 12 15 12 15 22"/>
-  </svg>
+const AgentAvatar = () => (
+  <div className="size-8 rounded-xl grid place-items-center shrink-0"
+    style={{ background: '#C8102E' }}>
+    <svg viewBox="0 0 20 20" fill="white" width="14" height="14">
+      <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
+    </svg>
+  </div>
 );
 
 export default function BuyerChat() {
@@ -30,8 +32,8 @@ export default function BuyerChat() {
   const [name, setName]           = useState(localStorage.getItem('buyer_name') || '');
   const [nameAsked, setNameAsked] = useState(!!localStorage.getItem('buyer_name'));
   const [loading, setLoading]     = useState(false);
-  const bottomRef = useRef(null);
-  const textareaRef = useRef(null);
+  const bottomRef    = useRef(null);
+  const textareaRef  = useRef(null);
 
   useEffect(() => {
     api.chatThread(sessionId).then(thread => {
@@ -50,7 +52,6 @@ export default function BuyerChat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -94,62 +95,50 @@ export default function BuyerChat() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center pt-safe pb-safe"
-      style={{
-        background: 'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201,151,58,0.12) 0%, transparent 60%), #07090e',
-        fontFamily: "'Outfit', ui-sans-serif, sans-serif",
-      }}>
+      style={{ background: '#F6F5F2', fontFamily: "'Figtree', ui-sans-serif, sans-serif" }}>
 
-      {/* Noise overlay */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.02]"
-        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundSize: '128px' }} />
-
-      <div className="relative z-10 w-full max-w-lg flex flex-col mx-auto animate-fade-up"
-        style={{ height: '100svh', maxHeight: 780 }}>
+      <div className="w-full max-w-lg flex flex-col mx-auto" style={{ height: '100svh', maxHeight: 800 }}>
 
         {/* ── Header ── */}
-        <header className="shrink-0 flex items-center gap-3 px-5 py-4"
-          style={{ background: 'rgba(13,15,22,0.9)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="size-10 rounded-2xl grid place-items-center shrink-0"
-            style={{ background: 'linear-gradient(135deg,#c9973a,#e0b96a)', boxShadow: '0 0 20px rgba(201,151,58,0.3)' }}>
-            <HomeIcon />
-          </div>
+        <header className="shrink-0 flex items-center gap-3 px-5 py-4 bg-surface"
+          style={{ borderBottom: '1px solid #E8E4DC', boxShadow: '0 1px 3px rgba(26,23,20,0.05)' }}>
+          <AgentAvatar />
           <div className="flex-1 min-w-0">
-            <div className="font-display font-semibold text-ivory text-base tracking-wide">Real Estate Assistant</div>
+            <div className="font-sans font-semibold text-ink text-[15px]">Real Estate Assistant</div>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="size-1.5 rounded-full bg-jade animate-pulse" />
-              <span className="text-[11px] text-muted font-sans">Online · RealtorAI</span>
+              <span className="size-1.5 rounded-full bg-jade animate-pulse" style={{ background: '#22C55E' }} />
+              <span className="text-[11px] font-sans" style={{ color: '#A09688' }}>Online · RealtorAI</span>
             </div>
+          </div>
+          <div className="text-[11px] font-sans font-medium px-2.5 py-1 rounded-full"
+            style={{ background: '#F6F5F2', border: '1px solid #E8E4DC', color: '#A09688' }}>
+            AI Guide
           </div>
         </header>
 
         {/* ── Messages ── */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4"
-          style={{ background: 'rgba(8,9,14,0.6)' }}>
+        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4" style={{ background: '#F6F5F2' }}>
 
           {messages.map((m, i) => (
-            <div key={i} className={`flex gap-2.5 animate-fade-up ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            <div key={i}
+              className={`flex gap-2.5 animate-fade-up ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               style={{ animationDelay: '0ms' }}>
 
-              {m.role === 'ai' && (
-                <div className="size-7 rounded-xl grid place-items-center shrink-0 mt-0.5"
-                  style={{ background: 'rgba(201,151,58,0.15)', border: '1px solid rgba(201,151,58,0.2)' }}>
-                  <HomeIcon />
-                </div>
-              )}
+              {m.role === 'ai' && <AgentAvatar />}
 
               <div className="max-w-[78%]">
                 <div className="px-4 py-2.5 rounded-2xl text-sm font-sans leading-relaxed"
                   style={m.role === 'user'
-                    ? { background: 'linear-gradient(135deg,rgba(201,151,58,0.25),rgba(224,185,106,0.15))', border: '1px solid rgba(201,151,58,0.2)', color: '#f0ece3', borderBottomRightRadius: 6 }
-                    : { background: 'rgba(22,27,39,0.9)', border: '1px solid rgba(255,255,255,0.07)', color: '#d8d4cc', borderBottomLeftRadius: 6 }
+                    ? { background: '#C8102E', color: '#FFFFFF', borderBottomRightRadius: 6, boxShadow: '0 1px 4px rgba(200,16,46,0.25)' }
+                    : { background: '#FFFFFF', border: '1px solid #E8E4DC', color: '#1A1714', borderBottomLeftRadius: 6, boxShadow: '0 1px 3px rgba(26,23,20,0.05)' }
                   }>
                   {m.text}
                 </div>
               </div>
 
               {m.role === 'user' && (
-                <div className="size-7 rounded-xl grid place-items-center shrink-0 mt-0.5 font-sans font-semibold text-[11px]"
-                  style={{ background: 'rgba(201,151,58,0.2)', color: '#e0b96a' }}>
+                <div className="size-8 rounded-xl grid place-items-center shrink-0 font-sans font-bold text-xs"
+                  style={{ background: '#FEF0F1', color: '#C8102E', border: '1px solid #FECDD3' }}>
                   {name ? name[0].toUpperCase() : 'U'}
                 </div>
               )}
@@ -159,16 +148,13 @@ export default function BuyerChat() {
           {/* Typing indicator */}
           {loading && (
             <div className="flex gap-2.5 justify-start animate-fade-up">
-              <div className="size-7 rounded-xl grid place-items-center shrink-0"
-                style={{ background: 'rgba(201,151,58,0.15)', border: '1px solid rgba(201,151,58,0.2)' }}>
-                <HomeIcon />
-              </div>
+              <AgentAvatar />
               <div className="px-4 py-3 rounded-2xl"
-                style={{ background: 'rgba(22,27,39,0.9)', border: '1px solid rgba(255,255,255,0.07)', borderBottomLeftRadius: 6 }}>
-                <div className="flex gap-1.5 items-center h-4">
-                  <span className="size-2 rounded-full bg-muted animate-dot-1" />
-                  <span className="size-2 rounded-full bg-muted animate-dot-2" />
-                  <span className="size-2 rounded-full bg-muted animate-dot-3" />
+                style={{ background: '#FFFFFF', border: '1px solid #E8E4DC', borderBottomLeftRadius: 6, boxShadow: '0 1px 3px rgba(26,23,20,0.05)' }}>
+                <div className="flex gap-1.5 items-center" style={{ height: 16 }}>
+                  <span className="size-2 rounded-full animate-dot-1" style={{ background: '#D0CBC0' }} />
+                  <span className="size-2 rounded-full animate-dot-2" style={{ background: '#D0CBC0' }} />
+                  <span className="size-2 rounded-full animate-dot-3" style={{ background: '#D0CBC0' }} />
                 </div>
               </div>
             </div>
@@ -178,28 +164,32 @@ export default function BuyerChat() {
         </div>
 
         {/* ── Input ── */}
-        <div className="shrink-0 px-4 py-3 flex gap-2 items-end"
-          style={{ background: 'rgba(10,12,18,0.95)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="shrink-0 px-4 py-3 flex gap-2 items-end bg-surface"
+          style={{ borderTop: '1px solid #E8E4DC' }}>
           <textarea
             ref={textareaRef}
             rows={1}
-            className="flex-1 resize-none rounded-2xl px-4 py-2.5 text-sm font-sans text-ivory placeholder-muted focus:outline-none transition-all leading-relaxed"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 120 }}
+            className="flex-1 resize-none rounded-2xl px-4 py-2.5 text-sm font-sans text-ink placeholder-muted focus:outline-none transition-all leading-relaxed"
+            style={{ background: '#F6F5F2', border: '1px solid #E8E4DC', maxHeight: 120 }}
             placeholder={nameAsked ? 'Ask about properties…' : 'Enter your name…'}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
+            onFocus={e  => e.target.style.borderColor = '#C8102E'}
+            onBlur={e   => e.target.style.borderColor = '#E8E4DC'}
             disabled={loading}
           />
           <button onClick={send} disabled={loading || !input.trim()}
             className="shrink-0 size-10 rounded-2xl grid place-items-center transition-all disabled:opacity-30"
-            style={{ background: 'linear-gradient(135deg,#c9973a,#e0b96a)' }}>
-            <span style={{ color: '#08090e' }}><SendIcon /></span>
+            style={{ background: '#C8102E', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(200,16,46,0.3)' }}
+            onMouseOver={e => { if (!e.currentTarget.disabled) e.currentTarget.style.background = '#A50D25'; }}
+            onMouseOut={e  => { e.currentTarget.style.background = '#C8102E'; }}>
+            <SendIcon />
           </button>
         </div>
       </div>
 
-      <p className="relative z-10 mt-3 text-[11px] font-sans text-muted text-center hidden md:block">
+      <p className="mt-3 text-[11px] font-sans text-center hidden md:block" style={{ color: '#C8C3BB' }}>
         Your conversation is private and secure · Powered by RealtorAI
       </p>
     </div>
