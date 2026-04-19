@@ -2,12 +2,9 @@
   "version": 2,
   "buildCommand": "npm --workspace client run build",
   "outputDirectory": "client/dist",
-  "functions": {
-    "server/index.js": { "maxDuration": 300 }
-  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "server/index.js" },
-    { "source": "/media/(.*)", "destination": "server/index.js" },
+    { "source": "/api/(.*)", "destination": "/api/server" },
+    { "source": "/media/(.*)", "destination": "/api/server" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
