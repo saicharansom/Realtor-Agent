@@ -1,22 +1,22 @@
 /**
- * Seedance video generation — via OpenRouter API.
+ * Video generation — via OpenRouter API.
  *
  * Submit:  POST https://openrouter.ai/api/v1/videos
  * Poll:    GET  <polling_url from response>
  * Done:    statusData.status === "completed", URLs in statusData.unsigned_urls[]
  *
  * Env:
- *   OPENROUTER_API_KEY  — required (sk-or-v1-...)
- *   OPENROUTER_VIDEO_MODEL — default: bytedance/seedance-2.0
+ *   OPENROUTER_VIDEO_API_KEY — required for video (sk-or-v1-...)
+ *   OPENROUTER_VIDEO_MODEL   — default: openai/sora-2-pro
  */
 
 const BASE_URL = 'https://openrouter.ai/api/v1/videos';
 const POLL_INTERVAL_MS = 5_000;
-const MODEL = process.env.OPENROUTER_VIDEO_MODEL || 'bytedance/seedance-2.0';
+const MODEL = process.env.OPENROUTER_VIDEO_MODEL || 'openai/sora-2-pro';
 
 function apiKey() {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) throw new Error('OPENROUTER_API_KEY not set');
+  const key = process.env.OPENROUTER_VIDEO_API_KEY || process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error('OPENROUTER_VIDEO_API_KEY not set');
   return key;
 }
 
