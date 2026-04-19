@@ -36,8 +36,13 @@ app.use((err, _req, res, _next) => {
 });
 
 const port = Number(process.env.PORT || 8788);
-app.listen(port, () => {
-  console.log(`realtor-ai server listening on :${port}`);
-  startReminderCron();
-  startSpectrum(handleInboundMessage);
-});
+
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`realtor-ai server listening on :${port}`);
+    startReminderCron();
+    startSpectrum(handleInboundMessage);
+  });
+}
+
+export default app;
