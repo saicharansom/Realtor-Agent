@@ -89,7 +89,7 @@ function buildMovie(imageUrls, textOverlays = []) {
   });
 
   return {
-    resolution: 'instagram-story',   // 1080 × 1920
+    resolution: 'full-hd',   // 1920 × 1080 landscape
     quality:    'high',
     cache:      false,
     scenes,

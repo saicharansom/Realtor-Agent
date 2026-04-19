@@ -89,8 +89,8 @@ export async function assembleVideo({ photoUrls, voiceover, captions, listingId 
   const filterParts = photoPaths.map((_, i) => {
     const pattern = kenBurnsPatterns[i % kenBurnsPatterns.length];
     return (
-      `[${i}:v]scale=1080:1920:force_original_aspect_ratio=increase,` +
-      `crop=1080:1920,` +
+      `[${i}:v]scale=1920:1080:force_original_aspect_ratio=increase,` +
+      `crop=1920:1080,` +
       `zoompan=${pattern}:d=${dFrames}:s=1080x1920,fps=30[v${i}]`
     );
   });
