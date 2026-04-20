@@ -103,11 +103,28 @@ export async function sendIMessage({ to, body }) {
   return { sent: true, to };
 }
 
-/** @deprecated kept for any remaining callers — use sendIMessage or replyToSpace */
+/**
+ * Normalise a Photon webhook payload into { from, body, timestamp }.
+ * Handles both flat and nested formats Photon may send.
+ */
 export function normaliseInbound(payload) {
-  return {
-    from: payload.from || payload.sender || payload.handle || '',
-    body: payload.body || payload.message || payload.text || '',
-    timestamp: payload.timestamp || payload.sent_at || Date.now(),
-  };
+  // sender can be a nested object { id: "+1..." } or a bare string
+  const from =
+    payload.from ||
+    payload.handle ||
+    (typeof payload.sender === 'string' ? payload.sender : payload.sender?.id) ||
+    '';
+
+  // body/text can be nested in content or flat
+  const body =
+    payload.body ||
+    payload.text ||
+    payload.message ||
+    payload.content?.text ||
+    (typeof payload.content === 'string' ? payload.content : '') ||
+    '';
+
+  const timestamp = payload.timestamp || payload.sent_at || Date.now();
+
+  return { from, body, timestamp };
 }

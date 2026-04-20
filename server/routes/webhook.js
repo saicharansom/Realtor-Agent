@@ -11,8 +11,12 @@ const r = Router();
  */
 r.post('/imessage', async (req, res, next) => {
   try {
+    console.log('[webhook] inbound payload:', JSON.stringify(req.body));
     const { from, body, timestamp } = normaliseInbound(req.body);
-    if (!from || !body) return res.status(400).json({ error: 'from + body required' });
+    if (!from || !body) {
+      console.warn('[webhook] missing from/body after normalise:', { from, body });
+      return res.status(400).json({ error: 'from + body required', received: req.body });
+    }
 
     const { reply, lead_id, action } = await handleInboundMessage({ from, body, timestamp });
     res.json({ ok: true, lead_id, action, reply });
