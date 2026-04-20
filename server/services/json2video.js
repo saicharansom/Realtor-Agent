@@ -36,17 +36,31 @@ const KB = [
 ];
 
 /**
+ * Map script lines onto images evenly.
+ * e.g. 5 lines across 8 images → each line gets ~1-2 images
+ */
+function assignCaptions(imageCount, lines) {
+  if (!lines.length) return Array(imageCount).fill('');
+  return Array.from({ length: imageCount }, (_, i) => {
+    const idx = Math.floor(i * lines.length / imageCount);
+    return lines[idx] || '';
+  });
+}
+
+/**
  * Build the JSON2Video movie payload.
  *
- * @param {string[]} imageUrls    — public HTTPS image URLs
- * @param {string[]} textOverlays — one caption per image (optional)
- * @returns {object}              — movie JSON body
+ * @param {string[]} imageUrls   — public HTTPS image URLs
+ * @param {string[]} scriptLines — all script lines (hook + beats + cta)
+ * @returns {object}             — movie JSON body
  */
-function buildMovie(imageUrls, textOverlays = []) {
-  const perScene = 3.2;
+function buildMovie(imageUrls, scriptLines = []) {
+  const perScene = 3.5;
+  // Distribute script lines evenly across images
+  const captions = assignCaptions(imageUrls.length, scriptLines.filter(Boolean));
 
   const scenes = imageUrls.map((src, i) => {
-    const kb = KB[i % KB.length];
+    const kb      = KB[i % KB.length];
     const isFirst = i === 0;
     const isLast  = i === imageUrls.length - 1;
 
@@ -66,22 +80,23 @@ function buildMovie(imageUrls, textOverlays = []) {
       ],
     };
 
-    const caption = textOverlays[i];
-    if (caption) {
+    // Text overlay — landscape frame is 1920×1080
+    // Place a semi-transparent bar near the bottom (y ≈ 880)
+    if (captions[i]) {
       scene.elements.push({
         type:               'text',
-        text:               caption,
-        'font-size':        38,
+        text:               captions[i],
+        'font-size':        44,
         'font-color':       '#FFFFFF',
-        'background-color': 'rgba(0,0,0,0.55)',
+        'background-color': 'rgba(0,0,0,0.60)',
         'font-family':      'Lato',
         'font-weight':      'bold',
         'text-align':       'center',
         position:           'custom',
         x:                  90,
-        y:                  1720,
-        width:              900,
-        height:             120,
+        y:                  900,
+        width:              1740,
+        height:             130,
       });
     }
 
